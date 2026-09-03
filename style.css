@@ -1,0 +1,202 @@
+:root {
+  --primary: #ff4b6e;
+  --primary-hover: #e03e5f;
+  --bg-color: #f8f9fa;
+  --card-bg: #ffffff;
+  --text-color: #2c3e50;
+  --text-muted: #7f8c8d;
+  --border-radius: 16px;
+  --shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+body {
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  padding: 20px 15px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+header {
+  text-align: center;
+  margin-bottom: 25px;
+}
+
+header h1 {
+  font-size: 2rem;
+  color: var(--primary);
+  margin-bottom: 8px;
+}
+
+#status-message {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  background: var(--card-bg);
+  padding: 10px 15px;
+  border-radius: 20px;
+  display: inline-block;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.upload-section {
+  background: var(--card-bg);
+  padding: 20px;
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+  margin-bottom: 25px;
+  text-align: center;
+}
+
+.upload-section h2 {
+  font-size: 1.1rem;
+  margin-bottom: 15px;
+}
+
+.upload-buttons {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-bottom: 15px;
+}
+
+.btn-upload {
+  background-color: var(--primary);
+  color: white;
+  padding: 12px 18px;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  font-size: 0.9rem;
+  flex: 1;
+}
+
+.btn-upload:hover {
+  background-color: var(--primary-hover);
+}
+
+.btn-upload input[type="file"] {
+  display: none;
+}
+
+.status-tracker {
+  display: flex;
+  justify-content: space-around;
+  gap: 10px;
+}
+
+.badge {
+  font-size: 0.8rem;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-weight: 500;
+}
+
+.badge.missing {
+  background-color: #ffe0e6;
+  color: #d63031;
+}
+
+.badge.ready {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.photos-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+  margin-bottom: 30px;
+}
+
+.card {
+  background: var(--card-bg);
+  border-radius: var(--border-radius);
+  padding: 10px;
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+
+.image-container {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 12px;
+  overflow: hidden;
+  background-color: #eee;
+}
+
+.image-container img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: filter 0.3s ease;
+}
+
+.image-container img.blurred {
+  filter: blur(25px);
+  scale: 1.1;
+}
+
+.overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.35);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.card-label {
+  margin: 10px 0 5px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.btn-delete {
+  background: none;
+  border: none;
+  color: #e74c3c;
+  font-size: 0.75rem;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+.album-section {
+  background: var(--card-bg);
+  padding: 20px;
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+
+.album-subtitle {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 15px;
+}
+
+.empty-msg {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.hidden {
+  display: none !important;
+}

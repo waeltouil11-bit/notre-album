@@ -34,7 +34,7 @@
 
     <section class="photos-grid">
       <div class="card">
-        <div class="image-container">
+        <div class="image-container" onclick="openModal('img-p1')">
           <img id="img-p1" src="" alt="Photo 1" class="blurred hidden">
           <div id="overlay-p1" class="overlay">En attente de la photo...</div>
         </div>
@@ -43,7 +43,7 @@
       </div>
 
       <div class="card">
-        <div class="image-container">
+        <div class="image-container" onclick="openModal('img-p2')">
           <img id="img-p2" src="" alt="Photo 2" class="blurred hidden">
           <div id="overlay-p2" class="overlay">En attente de la photo...</div>
         </div>
@@ -56,9 +56,15 @@
       <h2>📖 Notre Album Souvenir</h2>
       <p class="album-subtitle">Toutes vos photos débloquées au fil des semaines</p>
       <div id="album-grid" class="album-grid"></div>
-      <p id="empty-album-msg" class="empty-msg">Aucun souvenir archivé pour l'instant. Rendez-vous ce dimanche !</p>
+      <p id="empty-album-msg" class="empty-msg">Aucun souvenir archivé pour l'instant.</p>
     </section>
   </main>
+
+  <!-- Modal / Plein écran -->
+  <div id="photo-modal" class="modal hidden" onclick="closeModal()">
+    <span class="modal-close">&times;</span>
+    <img id="modal-img" src="" alt="Photo en plein écran">
+  </div>
 
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
@@ -77,12 +83,14 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
-    // ⚠️ SÉPARATION DES BASES DE DONNÉES : Utilisation de "currentWeek_v2"
-    const collectionName = "currentWeek_v2";
+    // Remplacez par "currentWeek_v2" pour le second site !
+    const collectionName = "currentWeek";
 
     let p1Image = null;
     let p2Image = null;
+    let isRevealed = false;
 
+    // Écoute de la semaine en cours
     db.collection(collectionName).doc("photos").onSnapshot((doc) => {
       if (doc.exists) {
         const data = doc.data();
@@ -93,13 +101,36 @@
         p2Image = null;
       }
       updateUI();
-    }, (error) => {
-      console.error("Erreur de synchronisation:", error);
+    });
+
+    // Écoute de l'album de souvenirs
+    db.collection(collectionName + "_album").orderBy("timestamp", "desc").onSnapshot((snapshot) => {
+      const albumGrid = document.getElementById('album-grid');
+      const emptyMsg = document.getElementById('empty-album-msg');
+      albumGrid.innerHTML = "";
+
+      if (snapshot.empty) {
+        emptyMsg.classList.remove('hidden');
+      } else {
+        emptyMsg.classList.add('hidden');
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          const item = document.createElement('div');
+          item.className = 'album-item';
+          item.innerHTML = `
+            <div class="album-pair">
+              <img src="${data.partner1}" onclick="openImageModal('${data.partner1}')">
+              <img src="${data.partner2}" onclick="openImageModal('${data.partner2}')">
+            </div>
+            <p class="album-date">${data.date}</p>
+          `;
+          albumGrid.appendChild(item);
+        });
+      }
     });
 
     function compressAndUpload(file, partner) {
-      document.getElementById('status-message').textContent = "⏳ Compression et envoi de la photo...";
-      
+      document.getElementById('status-message').textContent = "⏳ Compression et envoi...";
       const reader = new FileReader();
       reader.readAsDataURL(file);
       reader.onload = function(event) {
@@ -109,7 +140,6 @@
           const canvas = document.createElement('canvas');
           const MAX_WIDTH = 800;
           const scaleFactor = MAX_WIDTH / img.width;
-          
           if (img.width > MAX_WIDTH) {
             canvas.width = MAX_WIDTH;
             canvas.height = img.height * scaleFactor;
@@ -117,18 +147,14 @@
             canvas.width = img.width;
             canvas.height = img.height;
           }
-
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
           const base64Image = canvas.toDataURL('image/jpeg', 0.7);
 
           db.collection(collectionName).doc("photos").set({
             [partner]: base64Image
           }, { merge: true }).then(() => {
-            document.getElementById('status-message').textContent = "Photo envoyée avec succès !";
-          }).catch((err) => {
-            alert("Erreur lors de l'envoi : " + err.message);
+            document.getElementById('status-message').textContent = "Photo envoyée !";
           });
         };
       };
@@ -145,6 +171,21 @@
         await db.collection(collectionName).doc("photos").set({
           [partner]: firebase.firestore.FieldValue.delete()
         }, { merge: true });
+      }
+    }
+
+    async function saveToAlbum() {
+      const todayStr = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+      const albumDocRef = db.collection(collectionName + "_album").doc(todayStr);
+
+      const docSnap = await albumDocRef.get();
+      if (!docSnap.exists && p1Image && p2Image) {
+        await albumDocRef.set({
+          partner1: p1Image,
+          partner2: p2Image,
+          date: todayStr,
+          timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
       }
     }
 
@@ -177,28 +218,52 @@
       const bothUploaded = p1Image && p2Image;
 
       if (bothUploaded && isSunday) {
+        isRevealed = true;
         imgP1.classList.remove('blurred');
         imgP2.classList.remove('blurred');
         overlayP1.style.display = 'none';
         overlayP2.style.display = 'none';
         statusMsg.textContent = "✨ Bon dimanche ! Vos deux photos sont enfin révélées.";
+        
+        // Sauvegarde automatique dans l'album
+        saveToAlbum();
       } else {
+        isRevealed = false;
         imgP1.classList.add('blurred');
         imgP2.classList.add('blurred');
         overlayP1.style.display = 'flex';
         overlayP2.style.display = 'flex';
 
         if (!bothUploaded) {
-          statusMsg.textContent = "🔒 Envoyez TOUS LES DEUX votre photo pour débloquer le rendez-vous du dimanche !";
+          statusMsg.textContent = "🔒 Envoyez TOUS LES DEUX votre photo pour débloquer !";
           overlayP1.textContent = p1Image ? "🔒 En attente de la seconde photo..." : "📷 Importez votre photo";
           overlayP2.textContent = p2Image ? "🔒 En attente de la seconde photo..." : "📷 Importez votre photo";
         } else {
           const daysLeft = 7 - today.getDay();
           statusMsg.textContent = `🔒 Vos deux photos sont prêtes ! Rendez-vous dimanche. (${daysLeft}j restant(s))`;
-          overlayP1.textContent = "🔒 Se débloque dimanche matin";
-          overlayP2.textContent = "🔒 Se débloque dimanche matin";
+          overlayP1.textContent = "🔒 Se débloque dimanche";
+          overlayP2.textContent = "🔒 Se débloque dimanche";
         }
       }
+    }
+
+    // Gestion Plein Écran (Modal)
+    function openModal(imgId) {
+      if (!isRevealed) return; // Ne s'ouvre pas en plein écran si les photos sont encore floues
+      const imgSrc = document.getElementById(imgId).src;
+      openImageModal(imgSrc);
+    }
+
+    function openImageModal(src) {
+      if (!src) return;
+      const modal = document.getElementById('photo-modal');
+      const modalImg = document.getElementById('modal-img');
+      modalImg.src = src;
+      modal.classList.remove('hidden');
+    }
+
+    function closeModal() {
+      document.getElementById('photo-modal').classList.add('hidden');
     }
   </script>
 </body>

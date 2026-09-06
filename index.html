@@ -34,7 +34,7 @@
 
     <section class="photos-grid">
       <div class="card">
-        <div class="image-container" onclick="openModal('img-p1')">
+        <div class="image-container" onclick="openCurrentPhoto('img-p1')">
           <img id="img-p1" src="" alt="Photo 1" class="blurred hidden">
           <div id="overlay-p1" class="overlay">En attente de la photo...</div>
         </div>
@@ -43,7 +43,7 @@
       </div>
 
       <div class="card">
-        <div class="image-container" onclick="openModal('img-p2')">
+        <div class="image-container" onclick="openCurrentPhoto('img-p2')">
           <img id="img-p2" src="" alt="Photo 2" class="blurred hidden">
           <div id="overlay-p2" class="overlay">En attente de la photo...</div>
         </div>
@@ -55,15 +55,20 @@
     <section class="album-section">
       <h2>📖 Notre Album Souvenir</h2>
       <p class="album-subtitle">Toutes vos photos débloquées au fil des semaines</p>
-      <div id="album-grid" class="album-grid"></div>
+      <div id="album-grid" class="album-grid-compact"></div>
       <p id="empty-album-msg" class="empty-msg">Aucun souvenir archivé pour l'instant.</p>
     </section>
   </main>
 
-  <!-- Modal / Plein écran -->
-  <div id="photo-modal" class="modal hidden" onclick="closeModal()">
-    <span class="modal-close">&times;</span>
-    <img id="modal-img" src="" alt="Photo en plein écran">
+  <!-- Modal / Galerie Plein Écran -->
+  <div id="photo-modal" class="modal hidden">
+    <span class="modal-close" onclick="closeModal()">&times;</span>
+    <button class="modal-nav prev-btn" onclick="navigateGallery(-1)">&#10094;</button>
+    <div class="modal-content">
+      <img id="modal-img" src="" alt="Photo en plein écran">
+      <p id="modal-caption" class="modal-caption"></p>
+    </div>
+    <button class="modal-nav next-btn" onclick="navigateGallery(1)">&#10095;</button>
   </div>
 
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -83,12 +88,16 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
-    // Remplacez par "currentWeek_v2" pour le second site !
+    // Pour le 2ème site, remplacez par "currentWeek_v2"
     const collectionName = "currentWeek";
 
     let p1Image = null;
     let p2Image = null;
     let isRevealed = false;
+
+    // Galerie globale pour la navigation plein écran
+    let galleryList = [];
+    let currentGalleryIndex = 0;
 
     // Écoute de la semaine en cours
     db.collection(collectionName).doc("photos").onSnapshot((doc) => {
@@ -108,6 +117,7 @@
       const albumGrid = document.getElementById('album-grid');
       const emptyMsg = document.getElementById('empty-album-msg');
       albumGrid.innerHTML = "";
+      galleryList = [];
 
       if (snapshot.empty) {
         emptyMsg.classList.remove('hidden');
@@ -115,14 +125,23 @@
         emptyMsg.classList.add('hidden');
         snapshot.forEach((doc) => {
           const data = doc.data();
+          const dateStr = data.date || "Souvenir";
+
+          if (data.partner1) {
+            galleryList.push({ src: data.partner1, caption: `[Toi] - ${dateStr}` });
+          }
+          if (data.partner2) {
+            galleryList.push({ src: data.partner2, caption: `[Elle] - ${dateStr}` });
+          }
+
           const item = document.createElement('div');
-          item.className = 'album-item';
+          item.className = 'album-item-compact';
           item.innerHTML = `
-            <div class="album-pair">
-              <img src="${data.partner1}" onclick="openImageModal('${data.partner1}')">
-              <img src="${data.partner2}" onclick="openImageModal('${data.partner2}')">
+            <div class="album-pair-compact">
+              <img src="${data.partner1}" onclick="openGalleryBySrc('${data.partner1}')" alt="Photo 1">
+              <img src="${data.partner2}" onclick="openGalleryBySrc('${data.partner2}')" alt="Photo 2">
             </div>
-            <p class="album-date">${data.date}</p>
+            <p class="album-date-compact">${dateStr}</p>
           `;
           albumGrid.appendChild(item);
         });
@@ -225,7 +244,6 @@
         overlayP2.style.display = 'none';
         statusMsg.textContent = "✨ Bon dimanche ! Vos deux photos sont enfin révélées.";
         
-        // Sauvegarde automatique dans l'album
         saveToAlbum();
       } else {
         isRevealed = false;
@@ -247,23 +265,69 @@
       }
     }
 
-    // Gestion Plein Écran (Modal)
-    function openModal(imgId) {
-      if (!isRevealed) return; // Ne s'ouvre pas en plein écran si les photos sont encore floues
+    // Navigation Galerie
+    function openCurrentPhoto(imgId) {
+      if (!isRevealed) return;
       const imgSrc = document.getElementById(imgId).src;
-      openImageModal(imgSrc);
+      openGalleryBySrc(imgSrc);
     }
 
-    function openImageModal(src) {
+    function openGalleryBySrc(src) {
       if (!src) return;
-      const modal = document.getElementById('photo-modal');
-      const modalImg = document.getElementById('modal-img');
-      modalImg.src = src;
-      modal.classList.remove('hidden');
+      const index = galleryList.findIndex(item => item.src === src);
+      if (index !== -1) {
+        currentGalleryIndex = index;
+      } else {
+        galleryList.unshift({ src: src, caption: "Cette semaine" });
+        currentGalleryIndex = 0;
+      }
+      showModalImage();
+      document.getElementById('photo-modal').classList.remove('hidden');
+    }
+
+    function showModalImage() {
+      if (galleryList.length === 0) return;
+      const current = galleryList[currentGalleryIndex];
+      document.getElementById('modal-img').src = current.src;
+      document.getElementById('modal-caption').textContent = current.caption || "";
+    }
+
+    function navigateGallery(direction) {
+      if (galleryList.length === 0) return;
+      currentGalleryIndex += direction;
+      if (currentGalleryIndex < 0) {
+        currentGalleryIndex = galleryList.length - 1;
+      } else if (currentGalleryIndex >= galleryList.length) {
+        currentGalleryIndex = 0;
+      }
+      showModalImage();
     }
 
     function closeModal() {
       document.getElementById('photo-modal').classList.add('hidden');
+    }
+
+    // Gestion du swipe tactile
+    let touchStartX = 0;
+    let touchEndX = 0;
+    const modal = document.getElementById('photo-modal');
+
+    modal.addEventListener('touchstart', (e) => {
+      touchStartX = e.changedTouches[0].screenX;
+    });
+
+    modal.addEventListener('touchend', (e) => {
+      touchEndX = e.changedTouches[0].screenX;
+      handleSwipe();
+    });
+
+    function handleSwipe() {
+      if (touchEndX < touchStartX - 50) {
+        navigateGallery(1); // Swipe vers la gauche -> suivant
+      }
+      if (touchEndX > touchStartX + 50) {
+        navigateGallery(-1); // Swipe vers la droite -> précédent
+      }
     }
   </script>
 </body>
